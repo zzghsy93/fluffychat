@@ -42,31 +42,23 @@ jobs:
 
       # ---- 5. 修复 VS2026 C++ coroutine 编译错误 ----
       # local_auth_windows 插件用了废弃的 <experimental/coroutine>，
-      # VS2026 (MSVC 14.51) 需要显式加这个宏才能编译通过
-      - name: Patch coroutine deprecation error
+      # VS2026 (MSVC 14.51) 需要显式加这个宏。CMakeLists 补丁管不到
+      # 插件，必须用 CL 环境变量（MSVC 编译器会读取）全局注入。
+      # _ALLOW_KEYWORD_MACROS 是因为 MSVC 新版本把 yield/await 当
+      # 关键字了，coroutine 头文件需要这个宏才能用 #define await
+      - name: Fix MSVC coroutine deprecation
         run: |
-          $cmake = "windows/flutter/CMakeLists.txt"
-          $define = "add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)"
-          if (Select-String -Path $cmake -Pattern "_SILENCE_EXPERIMENTAL" -Quiet) {
-            Write-Host "Patch already applied."
-          } else {
-            Add-Content -Path $cmake -Value "`n$define"
-            Write-Host "Patched $cmake"
-          }
+          echo "CL=/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_ALLOW_KEYWORD_MACROS" >> $env:GITHUB_ENV
 
-      # ---- 6. 确保 AppData 目录存在 (cargokit 需要) ----
-      - name: Ensure AppData directory exists
-        run: New-Item -ItemType Directory -Force -Path "$env:LOCALAPPDATA"
-
-      # ---- 7. 获取依赖 ----
+      # ---- 6. 获取依赖 ----
       - name: Install dependencies
         run: flutter pub get
 
-      # ---- 8. 编译 Windows 版本 ----
+      # ---- 7. 编译 Windows 版本 ----
       - name: Build Windows (release)
         run: flutter build windows --release
 
-      # ---- 9. 上传构建产物 ----
+      # ---- 8. 上传构建产物 ----
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -74,7 +66,7 @@ jobs:
           path: build/windows/runner/Release/
           retention-days: 30
 
-      # ---- 10. 打包成 zip ----
+      # ---- 9. 打包成 zip ----
       - name: Package as zip
         run: |
           Compress-Archive -Path build/windows/runner/Release/* -DestinationPath fluffychat-windows-x64.zip
