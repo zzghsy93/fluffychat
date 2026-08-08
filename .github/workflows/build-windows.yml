@@ -58,7 +58,7 @@ jobs:
       - name: Apply bugfix patches
         shell: pwsh
         run: |
-          # Patch 1: chat.dart - fix scrolled-up detection
+          # Patch 1: chat.dart - fix scrolled-up detection + missing setReadMarker
           $chatFile = "lib/pages/chat/chat.dart"
           $chatContent = Get-Content $chatFile -Raw
 
@@ -74,6 +74,13 @@ jobs:
           $chatContent = $chatContent -replace
             'scrollController\.position\.pixels <= 0 && _scrolledUp == true',
             '!scrolledUp && _scrolledUp == true'
+
+          # 1c. 修复 _tryLoadTimeline 中 readMarkerEventIndex > 1 时
+          #     提前 return 导致 setReadMarker() 从不被调用
+          #     在 return 前先调用 setReadMarker()
+          $chatContent = $chatContent -replace
+            "(scrollToEventId\(readMarkerEventId, highlightEvent: false\);\r?\n)(\s+return;)",
+            "`${1}        setReadMarker();`r`n`${2}"
 
           Set-Content $chatFile -Value $chatContent -NoNewline
           Write-Host "Patched $chatFile"
