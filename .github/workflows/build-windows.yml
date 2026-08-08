@@ -61,25 +61,29 @@ jobs:
           # Patch 1: chat.dart - fix scrolled-up detection
           $chatFile = "lib/pages/chat/chat.dart"
           $chatContent = Get-Content $chatFile -Raw
-          $chatContent = $chatContent.Replace(
-            'scrollController.position.pixels > 0 && _scrolledUp == false) {',
-            'scrolledUp && _scrolledUp == false) {'
-          ).Replace(
-            'scrollController.position.pixels <= 0 && _scrolledUp == true) {',
-            '!scrolledUp && _scrolledUp == true) {'
-          ).Replace(
-            "if (!scrollController.hasClients) return;`n    if (timeline?.allowNewEvent == false ||",
-            "if (!scrollController.hasClients) return;`n    final scrolledUp = scrollController.position.pixels <`n        scrollController.position.maxScrollExtent - 50.0;`n    if (timeline?.allowNewEvent == false ||"
-          )
+
+          # 1a. 在 _updateScrollController 里插入 scrolledUp 计算
+          $chatContent = $chatContent -replace
+            '(if \(!scrollController\.hasClients\) return;\r?\n)(\s+if \(timeline\?\.allowNewEvent == false \|\|)',
+            "`${1}    final scrolledUp = scrollController.position.pixels <`r`n        scrollController.position.maxScrollExtent - 50.0;`r`n`${2}"
+
+          # 1b. 替换条件判断
+          $chatContent = $chatContent -replace
+            'scrollController\.position\.pixels > 0 && _scrolledUp == false',
+            'scrolledUp && _scrolledUp == false'
+          $chatContent = $chatContent -replace
+            'scrollController\.position\.pixels <= 0 && _scrolledUp == true',
+            '!scrolledUp && _scrolledUp == true'
+
           Set-Content $chatFile -Value $chatContent -NoNewline
           Write-Host "Patched $chatFile"
 
           # Patch 2: message.dart - add right-click copy
           $msgFile = "lib/pages/chat/events/message.dart"
           $msgContent = Get-Content $msgFile -Raw
-          $old = 'onSelect(event);`n                                      },`n                                child: _AnimateIn('
-          $new = 'onSelect(event);`n                                      },`n                                onSecondaryTapUp: (details) {`n                                  final body = event.getDisplayEvent(timeline).body;`n                                  if (body.isNotEmpty) {`n                                    Clipboard.setData(ClipboardData(text: body));`n                                  }`n                                },`n                                child: _AnimateIn('
-          $msgContent = $msgContent.Replace($old, $new)
+          $msgContent = $msgContent -replace
+            '(onLongPress: longPressSelect[\s\S]*?onSelect\(event\);\s+},)\s+child: _AnimateIn\(',
+            '${1}`r`n                                onSecondaryTapUp: (details) {`r`n                                  final body = event.getDisplayEvent(timeline).body;`r`n                                  if (body.isNotEmpty) {`r`n                                    Clipboard.setData(ClipboardData(text: body));`r`n                                  }`r`n                                },`r`n                                child: _AnimateIn('
           Set-Content $msgFile -Value $msgContent -NoNewline
           Write-Host "Patched $msgFile"
 
