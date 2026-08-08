@@ -68,8 +68,17 @@ jobs:
 
       # ---- 9. 打包成 zip ----
       - name: Package as zip
+        shell: pwsh
         run: |
-          Compress-Archive -Path build/windows/runner/Release/* -DestinationPath fluffychat-windows-x64.zip
+          $releaseDir = "build/windows/runner/Release"
+          if (Test-Path $releaseDir) {
+            Get-ChildItem $releaseDir
+            Compress-Archive -Path "$releaseDir/*" -DestinationPath fluffychat-windows-x64.zip
+          } else {
+            Write-Host "Release dir not found, checking build dir..."
+            Get-ChildItem build -Recurse -Depth 3
+            exit 1
+          }
 
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4
