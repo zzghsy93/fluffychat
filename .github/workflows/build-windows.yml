@@ -57,16 +57,14 @@ jobs:
             '!scrolledUp && _scrolledUp == true'
 
           # 1b. setReadMarker: push rule 没匹配时回退到末条事件
-          #     影响所有已读标记，不止这一个场景
           $c = $c -replace `
-            '(// There is no event we could place a read marker\r?\n\s+if \(eventId == null\) return;)', `
-            '// Fall back to latest visible event if no notifying event found`r`n    eventId ??= timeline.events.last.eventId;`r`n    if (eventId == null) return;'
+            'if \(eventId == null\) return;\r?\n', `
+            "eventId ??= timeline.events.last.eventId;`r`n    if (eventId == null) return;`r`n"
 
-          # 1c. _tryLoadTimeline: 时间线加载完后，直接标已读
-          #     这是未读问题的核心修复，单点改动
+          # 1c. _tryLoadTimeline: 时间线加载完后，立刻直接标已读
           $c = $c -replace `
-            '(await loadTimelineFuture;\r?\n)(\s+// We launched the chat with a given initial)', `
-            "`${1}`r`n      // Immediately mark room as read when entering`r`n      if (timeline != null && timeline!.events.isNotEmpty) {`r`n        final lastEventId = timeline!.events.last.eventId;`r`n        if (lastEventId != null &&`r`n            lastEventId.isValidMatrixIdStrict() &&`r`n            room.fullyRead != lastEventId) {`r`n          timeline!.setReadMarker(`r`n            eventId: lastEventId,`r`n            public: AppSettings.sendPublicReadReceipts.value,`r`n          );`r`n          room.markUnread(false);`r`n        }`r`n      }`r`n`r`n`${2}"
+            '(await loadTimelineFuture;)\r?\n', `
+            "`${1}`r`n    if (timeline != null && timeline!.events.isNotEmpty) { timeline!.events.last.eventId; try { timeline!.setReadMarker(eventId: timeline!.events.last.eventId!, public: AppSettings.sendPublicReadReceipts.value); room.markUnread(false); } catch (_) {} }`r`n"
 
           Set-Content $chat -Value $c -NoNewline
           Write-Host "Patched $chat"
