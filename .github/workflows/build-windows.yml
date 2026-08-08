@@ -66,7 +66,7 @@ jobs:
           #     这是未读问题的核心修复，单点改动
           $c = $c -replace `
             '(await loadTimelineFuture;\r?\n)(\s+// We launched the chat with a given initial)', `
-            "`${1}`r`n      // Immediately mark room as read when entering`r`n      if (timeline != null && timeline!.events.isNotEmpty) {`r`n        final lastEventId = timeline!.events.last.eventId;`r`n        if (lastEventId.isValidMatrixIdStrict() &&`r`n            room.fullyRead != lastEventId) {`r`n          timeline!.setReadMarker(`r`n            eventId: lastEventId,`r`n            public: AppSettings.sendPublicReadReceipts.value,`r`n          );`r`n          room.markUnread(false);`r`n        }`r`n      }`r`n`r`n`${2}"
+            "`${1}`r`n      // Immediately mark room as read when entering`r`n      if (timeline != null && timeline!.events.isNotEmpty) {`r`n        final lastEventId = timeline!.events.last.eventId;`r`n        if (lastEventId != null &&`r`n            lastEventId.isValidMatrixIdStrict() &&`r`n            room.fullyRead != lastEventId) {`r`n          timeline!.setReadMarker(`r`n            eventId: lastEventId,`r`n            public: AppSettings.sendPublicReadReceipts.value,`r`n          );`r`n          room.markUnread(false);`r`n        }`r`n      }`r`n`r`n`${2}"
 
           Set-Content $chat -Value $c -NoNewline
           Write-Host "Patched $chat"
