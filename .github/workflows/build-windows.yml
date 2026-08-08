@@ -50,15 +50,48 @@ jobs:
         run: |
           echo "CL=/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_ALLOW_KEYWORD_MACROS" >> $env:GITHUB_ENV
 
-      # ---- 6. 获取依赖 ----
+      # ---- 6. 应用 bug 修复补丁 ----
+      # (a) 未读标记：修复 _updateScrollController 用 maxScrollExtent
+      #     判断是否在底部，替代错误的 pixels > 0 判断
+      # (b) 复制消息：消息 GestureDetector 加上 onSecondaryTapUp，
+      #     右键直接复制消息文本到剪贴板
+      - name: Apply bugfix patches
+        shell: pwsh
+        run: |
+          # Patch 1: chat.dart - fix scrolled-up detection
+          $chatFile = "lib/pages/chat/chat.dart"
+          $chatContent = Get-Content $chatFile -Raw
+          $chatContent = $chatContent.Replace(
+            'scrollController.position.pixels > 0 && _scrolledUp == false) {',
+            'scrolledUp && _scrolledUp == false) {'
+          ).Replace(
+            'scrollController.position.pixels <= 0 && _scrolledUp == true) {',
+            '!scrolledUp && _scrolledUp == true) {'
+          ).Replace(
+            "if (!scrollController.hasClients) return;`n    if (timeline?.allowNewEvent == false ||",
+            "if (!scrollController.hasClients) return;`n    final scrolledUp = scrollController.position.pixels <`n        scrollController.position.maxScrollExtent - 50.0;`n    if (timeline?.allowNewEvent == false ||"
+          )
+          Set-Content $chatFile -Value $chatContent -NoNewline
+          Write-Host "Patched $chatFile"
+
+          # Patch 2: message.dart - add right-click copy
+          $msgFile = "lib/pages/chat/events/message.dart"
+          $msgContent = Get-Content $msgFile -Raw
+          $old = 'onSelect(event);`n                                      },`n                                child: _AnimateIn('
+          $new = 'onSelect(event);`n                                      },`n                                onSecondaryTapUp: (details) {`n                                  final body = event.getDisplayEvent(timeline).body;`n                                  if (body.isNotEmpty) {`n                                    Clipboard.setData(ClipboardData(text: body));`n                                  }`n                                },`n                                child: _AnimateIn('
+          $msgContent = $msgContent.Replace($old, $new)
+          Set-Content $msgFile -Value $msgContent -NoNewline
+          Write-Host "Patched $msgFile"
+
+      # ---- 7. 获取依赖 ----
       - name: Install dependencies
         run: flutter pub get
 
-      # ---- 7. 编译 Windows 版本 ----
+      # ---- 8. 编译 Windows 版本 ----
       - name: Build Windows (release)
         run: flutter build windows --release
 
-      # ---- 8. 组装完整产物并打包 ----
+      # ---- 9. 组装完整产物并打包 ----
       # CMake 把 exe / dll / data 分散在不同子目录，直接打包 runner/Release
       # 会缺文件。这里用 staging 目录统一收集所有依赖再打包。
       - name: Assemble and package
