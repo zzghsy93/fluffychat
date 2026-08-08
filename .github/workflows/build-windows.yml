@@ -82,8 +82,8 @@ jobs:
           $msgFile = "lib/pages/chat/events/message.dart"
           $msgContent = Get-Content $msgFile -Raw
           $msgContent = $msgContent -replace
-            '(onLongPress: longPressSelect[\s\S]*?onSelect\(event\);\s+},)\s+child: _AnimateIn\(',
-            '${1}`r`n                                onSecondaryTapUp: (details) {`r`n                                  final body = event.getDisplayEvent(timeline).body;`r`n                                  if (body.isNotEmpty) {`r`n                                    Clipboard.setData(ClipboardData(text: body));`r`n                                  }`r`n                                },`r`n                                child: _AnimateIn('
+            '(onLongPress: longPressSelect[\s\S]*?onSelect\(event\);\s+},\r?\n)(\s+child: _AnimateIn\()',
+            "`${1}                                onSecondaryTapUp: (details) {`r`n                                  final body = event.getDisplayEvent(timeline).body;`r`n                                  if (body.isNotEmpty) {`r`n                                    Clipboard.setData(ClipboardData(text: body));`r`n                                  }`r`n                                },`r`n`${2}"
           Set-Content $msgFile -Value $msgContent -NoNewline
           Write-Host "Patched $msgFile"
 
