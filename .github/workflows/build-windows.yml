@@ -58,23 +58,56 @@ jobs:
       - name: Build Windows (release)
         run: flutter build windows --release
 
-      # ---- 8. 查找产物并打包 ----
-      - name: Find and package build output
+      # ---- 8. 组装完整产物并打包 ----
+      # CMake 把 exe / dll / data 分散在不同子目录，直接打包 runner/Release
+      # 会缺文件。这里用 staging 目录统一收集所有依赖再打包。
+      - name: Assemble and package
         shell: pwsh
         run: |
-          # CMake 可能把产物放在不同路径，先找 fluffychat.exe
+          $staging = "staging"
+          New-Item -ItemType Directory -Force -Path $staging
+
+          # 1. 找到 fluffychat.exe 所在目录，复制所有文件（含 data/）
           $exePath = Get-ChildItem -Path build -Recurse -Name "fluffychat.exe" | Select-Object -First 1
           if (-not $exePath) {
-            Write-Host "ERROR: fluffychat.exe not found! Listing build dir:"
-            Get-ChildItem build -Recurse -Depth 3
+            Write-Host "ERROR: fluffychat.exe not found!"
             exit 1
           }
-          # -Name 返回的是相对于 build/ 的路径，需要拼回去
-          $releaseDir = "build\" + (Split-Path -Parent $exePath)
-          Write-Host "Found exe in: $releaseDir"
-          Get-ChildItem $releaseDir
-          Compress-Archive -Path "$releaseDir\*" -DestinationPath fluffychat-windows-x64.zip
-          Write-Host "Zipped to fluffychat-windows-x64.zip"
+          $exeDir = "build\" + (Split-Path -Parent $exePath)
+          Write-Host "Copying from $exeDir..."
+          Copy-Item -Path "$exeDir\*" -Destination $staging -Recurse -Force
+
+          # 2. 收集 build 树里所有 .dll（插件 / engine / native_assets 等）
+          Write-Host "Collecting all DLLs..."
+          $dlls = Get-ChildItem -Path build -Recurse -Filter "*.dll" | Where-Object { $_.FullName -notlike "*\staging\*" }
+          foreach ($dll in $dlls) {
+            Copy-Item -Path $dll.FullName -Destination $staging -Force
+            Write-Host "  + $($dll.Name)"
+          }
+
+          # 3. 确保 data/flutter_assets 存在
+          $assetsSrc = Get-ChildItem -Path build -Recurse -Directory -Name "flutter_assets" | Select-Object -First 1
+          if ($assetsSrc) {
+            $assetsDest = "$staging\data\flutter_assets"
+            if (-not (Test-Path $assetsDest)) {
+              Write-Host "Copying flutter_assets..."
+              Copy-Item -Path "build\$assetsSrc\*" -Destination $assetsDest -Recurse -Force
+              Copy-Item -Path "build\$assetsSrc" -Destination $assetsDest -Recurse -Force
+            }
+          }
+
+          # 4. 确保 icudtl.dat
+          $icudtl = Get-ChildItem -Path build -Recurse -Name "icudtl.dat" | Select-Object -First 1
+          if ($icudtl) {
+            Copy-Item -Path "build\$icudtl" -Destination "$staging\data\" -Force
+            Write-Host "  + icudtl.dat"
+          }
+
+          Write-Host "=== Final staging directory: ==="
+          Get-ChildItem $staging -Recurse
+
+          Compress-Archive -Path "$staging\*" -DestinationPath fluffychat-windows-x64.zip
+          Write-Host "Done: fluffychat-windows-x64.zip"
 
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4
