@@ -44,18 +44,6 @@ jobs:
           $chat = "lib/pages/chat/chat.dart"
           $c = Get-Content $chat -Raw
 
-          # 1a. _updateScrollController: pixels>0 → maxScrollExtent-50
-          #     影响所有滚动行为，不止未读标记
-          $c = $c -replace `
-            '(if \(!scrollController\.hasClients\) return;\r?\n)(\s+if \(timeline\?\.allowNewEvent == false \|\|)', `
-            "`${1}    final scrolledUp = scrollController.position.pixels <`r`n        scrollController.position.maxScrollExtent - 50.0;`r`n`${2}"
-          $c = $c -replace `
-            'scrollController\.position\.pixels > 0 && _scrolledUp == false', `
-            'scrolledUp && _scrolledUp == false'
-          $c = $c -replace `
-            'scrollController\.position\.pixels <= 0 && _scrolledUp == true', `
-            '!scrolledUp && _scrolledUp == true'
-
           # 1b. setReadMarker: push rule 没匹配时回退到末条事件
           $c = $c -replace `
             'if \(eventId == null\) return;\r?\n', `
