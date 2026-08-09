@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart' as wm;
 
-class TrayService {
+class TrayService with TrayListener {
   static final TrayService instance = TrayService._();
   TrayService._();
 
@@ -50,25 +50,32 @@ class TrayService {
     await trayManager.setContextMenu(menu);
     await trayManager.setToolTip('FluffyChat');
 
-    trayManager.addListener(_onTrayEvent);
+    trayManager.addListener(this);
   }
 
-  void _onTrayEvent(TrayListenerEvent event) {
-    if (event is TrayEventMenuItemClick) {
-      switch (event.menuItem.key) {
-        case 'show_window':
-          wm.windowManager.show();
-          wm.windowManager.focus();
-          break;
-        case 'quit':
-          trayManager.destroy();
-          wm.windowManager.destroy();
-          break;
-      }
-    } else if (event is TrayEventTrayIconMouseDown) {
-      wm.windowManager.show();
-      wm.windowManager.focus();
+  @override
+  void onTrayMenuItemClick(MenuItem menuItem) {
+    switch (menuItem.key) {
+      case 'show_window':
+        wm.windowManager.show();
+        wm.windowManager.focus();
+        break;
+      case 'quit':
+        trayManager.destroy();
+        wm.windowManager.destroy();
+        break;
     }
+  }
+
+  @override
+  void onTrayIconMouseDown() {
+    wm.windowManager.show();
+    wm.windowManager.focus();
+  }
+
+  @override
+  void onTrayIconRightMouseDown() {
+    trayManager.popUpContextMenu();
   }
 
   Future<void> setCloseToTray(bool enabled) async {
@@ -77,6 +84,7 @@ class TrayService {
   }
 
   Future<void> dispose() async {
+    trayManager.removeListener(this);
     await trayManager.destroy();
   }
 }
