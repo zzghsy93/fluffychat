@@ -49,12 +49,12 @@ jobs:
             'if \(eventId == null\) return;\r?\n', `
             "eventId ??= timeline.events.last.eventId;`r`n    if (eventId == null) return;`r`n"
 
-          # 1c. _tryLoadTimeline: 时间线加载完后，标已读。然后用
-          #     addPostFrameCallback 滚到底——确保在所有同步滚动
-          #     （如 scrollToEventId 跳到历史位置）完成后才执行
+          # 1c. _tryLoadTimeline: 标已读 + 300ms 延迟滚到底。
+          #     不能用 addPostFrameCallback，因为 scrollToEventId
+          #     的动画跨多帧，回调会被动画覆盖
           $c = $c -replace `
             '(await loadTimelineFuture;)\r?\n', `
-            "`${1}`r`n    if (timeline != null && timeline!.events.isNotEmpty) { try { timeline!.setReadMarker(eventId: timeline!.events.last.eventId!, public: AppSettings.sendPublicReadReceipts.value); room.markUnread(false); } catch (_) {} }`r`n    WidgetsBinding.instance.addPostFrameCallback((_) { if (scrollController.hasClients) { scrollController.jumpTo(0); } });`r`n"
+            "`${1}`r`n    if (timeline != null && timeline!.events.isNotEmpty) { try { timeline!.setReadMarker(eventId: timeline!.events.last.eventId!, public: AppSettings.sendPublicReadReceipts.value); room.markUnread(false); } catch (_) {} }`r`n    Future.delayed(const Duration(milliseconds: 300), () { if (scrollController.hasClients) { scrollController.jumpTo(0); } });`r`n"
 
           Set-Content $chat -Value $c -NoNewline
           Write-Host "Patched $chat"
