@@ -8,6 +8,7 @@ import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/utils/fluffy_share.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
+import 'package:fluffychat/utils/tray_service.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:flutter/material.dart';
@@ -142,6 +143,33 @@ class SettingsView extends StatelessWidget {
                 );
               },
             ),
+            ListTile(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              leading: const Icon(Icons.format_size_outlined),
+              title: Text(L10n.of(context).fontSize),
+              subtitle: Text(
+                '× ${AppSettings.fontSizeFactor.value.toStringAsFixed(2)}',
+              ),
+              onTap: () => context.go('/rooms/settings/style'),
+            ),
+            if (PlatformInfos.isDesktop)
+              StatefulBuilder(
+                builder: (context, setLocalState) => SwitchListTile.adaptive(
+                  controlAffinity: ListTileControlAffinity.trailing,
+                  value: AppSettings.closeToTray.value,
+                  secondary: const Icon(Icons.toggle_off_outlined),
+                  title: Text(L10n.of(context).closeToTray),
+                  subtitle: Text(L10n.of(context).closeToTrayDesc),
+                  contentPadding: const EdgeInsets.only(left: 16, right: 8),
+                  onChanged: (v) {
+                    setLocalState(() {});
+                    TrayService.instance.setCloseToTray(v);
+                  },
+                ),
+              ),
+            Divider(color: theme.dividerColor),
             ListTile(
               leading: const Icon(Icons.format_paint_outlined),
               title: Text(L10n.of(context).changeTheme),

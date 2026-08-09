@@ -341,6 +341,16 @@ class SettingsStyleView extends StatelessWidget {
               semanticFormatterCallback: (d) => d.toString(),
               onChanged: controller.changeFontSizeFactor,
             ),
+            Padding(
+              padding: const EdgeInsets.only(left: 16.0, bottom: 12.0),
+              child: Text(
+                L10n.of(context).fontSizeHint,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.secondary,
+                  fontSize: 12,
+                ),
+              ),
+            ),
           ],
         ),
       ),

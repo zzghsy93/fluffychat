@@ -7,6 +7,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/utils/account_config.dart';
 import 'package:fluffychat/utils/file_selector.dart';
+import 'package:fluffychat/utils/font_size_notifier.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/theme_builder.dart';
 import 'package:flutter/material.dart';
@@ -132,7 +133,7 @@ class SettingsStyleController extends State<SettingsStyle> {
   }
 
   Future<void> changeFontSizeFactor(double d) async {
-    await AppSettings.fontSizeFactor.setItem(d);
+    await updateFontSize(d);
     setState(() {});
   }
 

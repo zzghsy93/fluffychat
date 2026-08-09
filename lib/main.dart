@@ -22,6 +22,8 @@ import 'package:universal_html/universal_html.dart' as web;
 
 import 'config/setting_keys.dart';
 import 'utils/background_push.dart';
+import 'utils/font_size_notifier.dart';
+import 'utils/tray_service.dart';
 import 'widgets/fluffy_chat_app.dart';
 
 ReceivePort? mainIsolateReceivePort;
@@ -99,7 +101,11 @@ void main(List<String> args) async {
   Logs().i(
     '${AppSettings.applicationName.value} started in foreground mode. Rendering GUI...',
   );
+  initFontSizeNotifier();
   await startGui(clients, store);
+  if (PlatformInfos.isDesktop) {
+    await TrayService.instance.init();
+  }
 }
 
 /// Fetch the pincode for the applock and start the flutter engine.

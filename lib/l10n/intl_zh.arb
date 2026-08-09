@@ -2717,5 +2717,20 @@
                 "type": "int"
             }
         }
+    },
+    "closeToTray": "最小化到托盘",
+    "closeToTrayDesc": "点击关闭按钮时将应用隐藏到系统托盘",
+    "fontSizeHint": "提示：使用 Ctrl + 鼠标滚轮 可随时调整字号",
+    "@closeToTray": {
+        "type": "String",
+        "placeholders": {}
+    },
+    "@closeToTrayDesc": {
+        "type": "String",
+        "placeholders": {}
+    },
+    "@fontSizeHint": {
+        "type": "String",
+        "placeholders": {}
     }
 }

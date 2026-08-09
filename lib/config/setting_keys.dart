@@ -78,7 +78,8 @@ enum AppSettings<T> {
   showThumbnailsInTimeline<bool>('chat.fluffy.showThumbnailsInTimeline', true),
   doubleTapToReact<bool>('chat.fluffy.double_tap_to_react', false),
   doubleTapReaction<String>('chat.fluffy.double_tap_reaction', '❤️'),
-  benchmarksInLogs<bool>('chat.fluffy.benchmarks_in_logs', false);
+  benchmarksInLogs<bool>('chat.fluffy.benchmarks_in_logs', false),
+  closeToTray<bool>('chat.fluffy.close_to_tray', true);
 
   final String key;
   final T defaultValue;

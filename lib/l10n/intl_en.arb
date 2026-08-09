@@ -2763,5 +2763,20 @@
     "unifiedPushDistributors": "Unified Push distributors:",
     "doubleTapToReact": "Double-tap to react",
     "doubleTapToReactDescription": "Double-tap a message to react instead of selecting text",
-    "doubleTapReaction": "Double-tap reaction"
+    "doubleTapReaction": "Double-tap reaction",
+    "closeToTray": "Minimize to tray",
+    "@closeToTray": {
+        "type": "String",
+        "placeholders": {}
+    },
+    "closeToTrayDesc": "Clicking the close button hides the app to the system tray",
+    "@closeToTrayDesc": {
+        "type": "String",
+        "placeholders": {}
+    },
+    "fontSizeHint": "Tip: Use Ctrl + Mouse Wheel to adjust font size anywhere",
+    "@fontSizeHint": {
+        "type": "String",
+        "placeholders": {}
+    }
 }

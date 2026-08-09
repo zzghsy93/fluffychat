@@ -126,6 +126,16 @@ class SpacesNavigationRail extends StatelessWidget {
                       padding: const EdgeInsets.all(12.0),
                       child: StartChatFab(),
                     ),
+                  NaviRailItem(
+                    isSelected: false,
+                    onTap: () => context.go('/rooms/settings'),
+                    icon: const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: Icon(Icons.settings_outlined),
+                    ),
+                    toolTip: L10n.of(context).settings,
+                  ),
+                  const SizedBox(height: 8),
                 ],
               ),
             );
