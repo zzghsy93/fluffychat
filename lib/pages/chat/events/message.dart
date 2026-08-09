@@ -431,6 +431,12 @@ class Message extends StatelessWidget {
                                         HapticFeedback.heavyImpact();
                                         onSelect(event);
                                       },
+                                onSecondaryTapUp: (details) {
+                                  final body = event.getDisplayEvent(timeline).body;
+                                  if (body.isNotEmpty) {
+                                    Clipboard.setData(ClipboardData(text: body));
+                                  }
+                                },
                                 child: _AnimateIn(
                                   key: ValueKey(
                                     event.transactionId ?? event.eventId,

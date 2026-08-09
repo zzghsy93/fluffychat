@@ -32,55 +32,46 @@ jobs:
         run: |
           echo "CL=/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS /D_ALLOW_KEYWORD_MACROS" >> $env:GITHUB_ENV
 
-      # ============================================================
-      # 源码补丁
-      # ============================================================
-
       - name: Apply patches
         shell: pwsh
         run: |
 
-          # === Patch 1: chat.dart ===
-          $chat = "lib/pages/chat/chat.dart"
-          $c = Get-Content $chat -Raw
+          # === chat.dart ===
+          $f = "lib/pages/chat/chat.dart"
+          $c = Get-Content $f -Raw
 
-          # 1b. setReadMarker: push rule 没匹配时回退到末条事件
+          # 1. 打开房间时立刻标已读（只匹配 _tryLoadTimeline 里那一处）
           $c = $c -replace `
-            'if \(eventId == null\) return;\r?\n', `
-            "eventId ??= timeline.events.last.eventId;`r`n    if (eventId == null) return;`r`n"
+            'await loadTimelineFuture;\r?\n\s+// We launched the chat with a given initial', `
+            "await loadTimelineFuture;`r`n    if (timeline != null && timeline!.events.isNotEmpty) { try { timeline!.setReadMarker(eventId: timeline!.events.last.eventId!, public: AppSettings.sendPublicReadReceipts.value); room.markUnread(false); } catch (_) {} }`r`n      // We launched the chat with a given initial"
 
-          # 1c. _tryLoadTimeline: 标已读 + 300ms 延迟滚到底。
-          #     不能用 addPostFrameCallback，因为 scrollToEventId
-          #     的动画跨多帧，回调会被动画覆盖
+          # 2. scrollToEventId: 跳到末条消息而不是读标记位置
           $c = $c -replace `
-            '(await loadTimelineFuture;)\r?\n', `
-            "`${1}`r`n    if (timeline != null && timeline!.events.isNotEmpty) { try { timeline!.setReadMarker(eventId: timeline!.events.last.eventId!, public: AppSettings.sendPublicReadReceipts.value); room.markUnread(false); } catch (_) {} }`r`n    Future.delayed(const Duration(milliseconds: 300), () { if (scrollController.hasClients) { scrollController.jumpTo(0); } });`r`n"
+            'scrollToEventId\(readMarkerEventId, highlightEvent: false\);', `
+            'scrollToEventId(timeline?.events.lastOrNull?.eventId ?? readMarkerEventId, highlightEvent: false);'
 
-          Set-Content $chat -Value $c -NoNewline
-          Write-Host "Patched $chat"
+          # 3. setReadMarker: push rule 没匹配时回退到末条事件
+          $c = $c -replace `
+            '// There is no event we could place a read marker\r?\n\s+if \(eventId == null\) return;', `
+            "// Fall back to latest visible event if no notifying event found`r`n    eventId ??= timeline.events.last.eventId;`r`n    if (eventId == null) return;"
 
-          # === Patch 2: message.dart —— 右键复制 ===
-          $msg = "lib/pages/chat/events/message.dart"
-          $m = Get-Content $msg -Raw
-          $m = $m -replace `
+          Set-Content $f -Value $c -NoNewline
+          Write-Host "Patched $f"
+
+          # === message.dart: right-click copy ===
+          $m = "lib/pages/chat/events/message.dart"
+          $mc = Get-Content $m -Raw
+          $mc = $mc -replace `
             '(onLongPress: longPressSelect[\s\S]*?onSelect\(event\);\s+},\r?\n)(\s+child: _AnimateIn\()', `
             "`${1}                                onSecondaryTapUp: (details) {`r`n                                  final body = event.getDisplayEvent(timeline).body;`r`n                                  if (body.isNotEmpty) {`r`n                                    Clipboard.setData(ClipboardData(text: body));`r`n                                  }`r`n                                },`r`n`${2}"
-          Set-Content $msg -Value $m -NoNewline
-          Write-Host "Patched $msg"
-
-      # ============================================================
-      # 编译
-      # ============================================================
+          Set-Content $m -Value $mc -NoNewline
+          Write-Host "Patched $m"
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build Windows (release)
         run: flutter build windows --release
-
-      # ============================================================
-      # 打包
-      # ============================================================
 
       - name: Assemble and package
         shell: pwsh

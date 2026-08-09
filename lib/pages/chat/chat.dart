@@ -446,6 +446,15 @@ class ChatController extends State<ChatPageWithRoom>
     loadTimelineFuture = _getTimeline();
     try {
       await loadTimelineFuture;
+    if (timeline != null && timeline!.events.isNotEmpty) {
+      try {
+        timeline!.setReadMarker(
+          eventId: timeline!.events.last.eventId!,
+          public: AppSettings.sendPublicReadReceipts.value,
+        );
+        room.markUnread(false);
+      } catch (_) {}
+    }
       // We launched the chat with a given initial event ID:
       if (initialEventId != null) {
         scrollToEventId(initialEventId);
@@ -475,7 +484,7 @@ class ChatController extends State<ChatPageWithRoom>
 
       if (readMarkerEventIndex > 1) {
         Logs().v('Scroll up to visible event', readMarkerEventId);
-        scrollToEventId(readMarkerEventId, highlightEvent: false);
+        scrollToEventId(timeline?.events.lastOrNull?.eventId ?? readMarkerEventId, highlightEvent: false);
         return;
       } else if (readMarkerEventId.isNotEmpty && readMarkerEventIndex == -1) {
         _showScrollUpMaterialBanner(readMarkerEventId);
@@ -592,7 +601,8 @@ class ChatController extends State<ChatPageWithRoom>
         )
         ?.eventId;
 
-    // There is no event we could place a read marker
+    // Fall back to latest visible event if no notifying event found
+    eventId ??= timeline.events.last.eventId;
     if (eventId == null) return;
 
     // This is a sending event, we do not set a readmarker yet
