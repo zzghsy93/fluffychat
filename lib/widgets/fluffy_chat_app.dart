@@ -20,6 +20,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../utils/custom_scroll_behaviour.dart';
 import 'matrix.dart';
 
+/// Ctrl+Plus/Minus font size step.
+const double _fontStep = 0.05;
+const double _fontMin = 0.5;
+const double _fontMax = 2.5;
+
 class FluffyChatApp extends StatelessWidget {
   final Widget? testWidget;
   final List<Client> clients;
@@ -38,22 +43,6 @@ class FluffyChatApp extends StatelessWidget {
   /// opened multiple times for example if the user logs out after they logged
   /// in with qr code or magic link.
   static bool gotInitialLink = false;
-
-  void _handleScroll(PointerSignalEvent event) {
-    if (event is PointerScrollEvent) {
-      final keys = HardwareKeyboard.instance.logicalKeysPressed;
-      if (keys.contains(LogicalKeyboardKey.controlLeft) ||
-          keys.contains(LogicalKeyboardKey.controlRight)) {
-        final delta = event.scrollDelta.dy;
-        final current = fontSizeNotifier.value;
-        final step = 0.05;
-        final newValue = delta > 0
-            ? (current - step).clamp(0.5, 2.5)
-            : (current + step).clamp(0.5, 2.5);
-        updateFontSize(newValue);
-      }
-    }
-  }
 
   // Router must be outside of build method so that hot reload does not reset
   // the current path.
@@ -94,31 +83,55 @@ class FluffyChatApp extends StatelessWidget {
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
         routerConfig: router,
-        builder: (context, child) => Listener(
-          onPointerSignal: _handleScroll,
-          child: ValueListenableBuilder<double>(
-            valueListenable: fontSizeNotifier,
-            builder: (context, fontSizeValue, child) => MediaQuery(
-              data: MediaQuery.of(context).copyWith(
-                textScaler: TextScaler.linear(fontSizeValue),
-              ),
-              child: AppLockWidget(
-                pincode: appLockSettings.pincode,
-                useBiometrics: appLockSettings.useBiometrics,
-                isLoggedIn: clients.any((client) => client.isLogged()),
-                // Need a navigator above the Matrix widget for
-                // displaying dialogs
-                child: Matrix(
-                  clients: clients,
-                  store: store,
-                  child: testWidget ?? child!,
+        builder: (context, child) => Shortcuts(
+          shortcuts: {
+            SingleActivator(LogicalKeyboardKey.equal, control: true):
+                const _FontSizeIntent(1),
+            SingleActivator(LogicalKeyboardKey.minus, control: true):
+                const _FontSizeIntent(-1),
+          },
+          child: Actions(
+            actions: {
+              _FontSizeIntent: _FontSizeAction(),
+            },
+            child: ValueListenableBuilder<double>(
+              valueListenable: fontSizeNotifier,
+              builder: (context, fontSizeValue, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  textScaler: TextScaler.linear(fontSizeValue),
+                ),
+                child: AppLockWidget(
+                  pincode: appLockSettings.pincode,
+                  useBiometrics: appLockSettings.useBiometrics,
+                  isLoggedIn: clients.any((client) => client.isLogged()),
+                  child: Matrix(
+                    clients: clients,
+                    store: store,
+                    child: testWidget ?? child!,
+                  ),
                 ),
               ),
+              child: testWidget ?? child,
             ),
-            child: testWidget ?? child,
           ),
         ),
       ),
     );
+  }
+}
+
+class _FontSizeIntent extends Intent {
+  final int direction;
+  const _FontSizeIntent(this.direction);
+}
+
+class _FontSizeAction extends Action<_FontSizeIntent> {
+  @override
+  Object? invoke(_FontSizeIntent intent) {
+    final current = fontSizeNotifier.value;
+    final newValue =
+        (current + intent.direction * _fontStep).clamp(_fontMin, _fontMax);
+    updateFontSize(newValue);
+    return null;
   }
 }

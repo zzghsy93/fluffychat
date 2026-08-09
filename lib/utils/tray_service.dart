@@ -3,13 +3,11 @@ import 'dart:io';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart' as wm;
 
-class TrayService with WidgetsBindingObserver {
-  static final TrayService _instance = TrayService._();
-  static TrayService get instance => _instance;
+class TrayService {
+  static final TrayService instance = TrayService._();
   TrayService._();
 
   bool _initialized = false;
@@ -26,14 +24,6 @@ class TrayService with WidgetsBindingObserver {
     await wm.windowManager.setPreventClose(
       AppSettings.closeToTray.value,
     );
-
-    wm.windowManager.setCloseInterceptor(() async {
-      if (AppSettings.closeToTray.value) {
-        await wm.windowManager.hide();
-      } else {
-        await wm.windowManager.destroy();
-      }
-    });
 
     // Init tray
     await trayManager.setIcon(
@@ -63,8 +53,8 @@ class TrayService with WidgetsBindingObserver {
     trayManager.addListener(_onTrayEvent);
   }
 
-  void _onTrayEvent(TrayEvent event) {
-    if (event is TrayMenuItemEvent) {
+  void _onTrayEvent(TrayListenerEvent event) {
+    if (event is TrayEventMenuItemClick) {
       switch (event.menuItem.key) {
         case 'show_window':
           wm.windowManager.show();
@@ -75,7 +65,7 @@ class TrayService with WidgetsBindingObserver {
           wm.windowManager.destroy();
           break;
       }
-    } else if (event is TrayTappedEvent) {
+    } else if (event is TrayEventTrayIconMouseDown) {
       wm.windowManager.show();
       wm.windowManager.focus();
     }
