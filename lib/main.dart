@@ -23,6 +23,7 @@ import 'package:universal_html/universal_html.dart' as web;
 import 'config/setting_keys.dart';
 import 'utils/background_push.dart';
 import 'utils/font_size_notifier.dart';
+import 'utils/scheduler_service.dart';
 import 'utils/tray_service.dart';
 import 'widgets/fluffy_chat_app.dart';
 
@@ -103,6 +104,7 @@ void main(List<String> args) async {
   );
   initFontSizeNotifier();
   await startGui(clients, store);
+  SchedulerService.instance.start();
   if (PlatformInfos.isDesktop) {
     await TrayService.instance.init();
   }

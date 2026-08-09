@@ -8,6 +8,7 @@ import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/pages/chat_list/unread_bubble.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
 import 'package:fluffychat/utils/room_status_extension.dart';
+import 'package:fluffychat/utils/scheduler_service.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/hover_builder.dart';
@@ -66,7 +67,12 @@ class ChatListItem extends StatelessWidget {
         room.getState(EventTypes.RoomMember, lastEvent.senderId) == null;
     final space = this.space;
 
-    return Padding(
+    return ValueListenableBuilder<Map<String, SchedulerCharInfo>>(
+      valueListenable: SchedulerService.instance.status,
+      builder: (context, status, child) {
+        final scheduleInfo = status[displayname];
+
+        return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Material(
         borderRadius: BorderRadius.circular(AppConfig.borderRadius),
@@ -310,12 +316,68 @@ class ChatListItem extends StatelessWidget {
                             maxLines: 1,
                             softWrap: false,
                           )
-                        : FutureBuilder(
-                            key: ValueKey(
-                              '${lastEvent?.eventId}_${lastEvent?.type}_${lastEvent?.redacted}',
-                            ),
-                            future: needLastEventSender
-                                ? lastEvent.calcLocalizedBody(
+                        : Row(
+                            mainAxisSize: .min,
+                            children: [
+                              if (scheduleInfo != null &&
+                                  scheduleInfo.isActive &&
+                                  room.notificationCount == 0) ...[
+                                Container(
+                                  margin: const EdgeInsets.only(right: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: scheduleInfo.remainingMin < 10
+                                        ? theme.colorScheme.primaryContainer
+                                        : theme.colorScheme.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: .min,
+                                    children: [
+                                      Icon(
+                                        Icons.schedule,
+                                        size: 10,
+                                        color: scheduleInfo.remainingMin < 10
+                                            ? theme.colorScheme.primary
+                                            : theme.colorScheme.outline,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        scheduleInfo.remainingText,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: scheduleInfo.remainingMin < 10
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.outline,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              Flexible(
+                                child: FutureBuilder(
+                                  key: ValueKey(
+                                    '${lastEvent?.eventId}_${lastEvent?.type}_${lastEvent?.redacted}',
+                                  ),
+                                  future: needLastEventSender
+                                      ? lastEvent.calcLocalizedBody(
+                                          MatrixLocals(L10n.of(context)),
+                                          hideReply: true,
+                                          hideEdit: true,
+                                          plaintextBody: true,
+                                          removeMarkdown: true,
+                                          withSenderNamePrefix:
+                                              (!isDirectChat ||
+                                              directChatMatrixId !=
+                                                  room.lastEvent?.senderId),
+                                        )
+                                      : null,
+                                  initialData: lastEvent?.calcLocalizedBodyFallback(
                                     MatrixLocals(L10n.of(context)),
                                     hideReply: true,
                                     hideEdit: true,
@@ -325,45 +387,36 @@ class ChatListItem extends StatelessWidget {
                                         (!isDirectChat ||
                                         directChatMatrixId !=
                                             room.lastEvent?.senderId),
-                                  )
-                                : null,
-                            initialData: lastEvent?.calcLocalizedBodyFallback(
-                              MatrixLocals(L10n.of(context)),
-                              hideReply: true,
-                              hideEdit: true,
-                              plaintextBody: true,
-                              removeMarkdown: true,
-                              withSenderNamePrefix:
-                                  (!isDirectChat ||
-                                  directChatMatrixId !=
-                                      room.lastEvent?.senderId),
-                            ),
-                            builder: (context, snapshot) => Text(
-                              room.membership == Membership.invite
-                                  ? room
-                                            .getState(
-                                              EventTypes.RoomMember,
-                                              room.client.userID!,
-                                            )
-                                            ?.content
-                                            .tryGet<String>('reason') ??
-                                        (isDirectChat
-                                            ? L10n.of(context).newChatRequest
-                                            : L10n.of(context).inviteGroupChat)
-                                  : snapshot.data?.trim().replaceAll(
-                                          '\n',
-                                          ' ',
-                                        ) ??
-                                        L10n.of(context).noMessagesYet,
-                              softWrap: false,
-                              maxLines: room.notificationCount >= 1 ? 2 : 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                decoration: room.lastEvent?.redacted == true
-                                    ? TextDecoration.lineThrough
-                                    : null,
+                                  ),
+                                  builder: (context, snapshot) => Text(
+                                    room.membership == Membership.invite
+                                        ? room
+                                                  .getState(
+                                                    EventTypes.RoomMember,
+                                                    room.client.userID!,
+                                                  )
+                                                  ?.content
+                                                  .tryGet<String>('reason') ??
+                                              (isDirectChat
+                                                  ? L10n.of(context).newChatRequest
+                                                  : L10n.of(context).inviteGroupChat)
+                                        : snapshot.data?.trim().replaceAll(
+                                                '\n',
+                                                ' ',
+                                              ) ??
+                                              L10n.of(context).noMessagesYet,
+                                    softWrap: false,
+                                    maxLines: room.notificationCount >= 1 ? 2 : 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      decoration: room.lastEvent?.redacted == true
+                                          ? TextDecoration.lineThrough
+                                          : null,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
                   ),
                   const SizedBox(width: 8),
@@ -403,5 +456,7 @@ class ChatListItem extends StatelessWidget {
         ),
       ),
     );
+        },
+      );
   }
 }
