@@ -18,20 +18,25 @@ class TrayService with TrayListener {
 
     _initialized = true;
 
-    // Init window manager for close-to-tray behavior
+    // Init window manager (just ensure initialized, don't prevent close yet)
     await wm.windowManager.ensureInitialized();
 
-    await wm.windowManager.setPreventClose(
-      AppSettings.closeToTray.value,
-    );
+    // Only set prevent close if explicitly enabled by user
+    if (AppSettings.closeToTray.value) {
+      await wm.windowManager.setPreventClose(true);
+    }
 
-    // Init tray
-    await trayManager.setIcon(
-      Platform.isWindows
-          ? 'assets/logo/mini/logo_mini.png'
-          : '@mipmap/ic_launcher',
-      isTemplate: Platform.isMacOS,
-    );
+    // Init tray icon.
+    // On Windows, the exe's embedded icon is used by default when no icon is set.
+    // We try to set a custom icon but fall back silently on failure.
+    try {
+      await trayManager.setIcon(
+        'assets/logo/mini/logo_mini.png',
+        isTemplate: Platform.isMacOS,
+      );
+    } catch (_) {
+      // Ignore: tray will use default icon
+    }
 
     final menu = Menu(
       items: [
