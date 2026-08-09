@@ -484,7 +484,7 @@ class ChatController extends State<ChatPageWithRoom>
 
       if (readMarkerEventIndex > 1) {
         Logs().v('Scroll up to visible event', readMarkerEventId);
-        scrollToEventId(timeline?.events.lastOrNull?.eventId ?? readMarkerEventId, highlightEvent: false);
+        scrollToEventId(room.lastEvent?.eventId ?? readMarkerEventId, highlightEvent: false);
         return;
       } else if (readMarkerEventId.isNotEmpty && readMarkerEventIndex == -1) {
         _showScrollUpMaterialBanner(readMarkerEventId);
