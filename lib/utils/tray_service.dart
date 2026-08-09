@@ -2,11 +2,10 @@ import 'dart:io';
 
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/config/setting_keys.dart';
-import 'package:flutter/services.dart';
 import 'package:tray_manager/tray_manager.dart';
-import 'package:window_manager/window_manager.dart' as wm;
+import 'package:window_manager/window_manager.dart';
 
-class TrayService with TrayListener {
+class TrayService with TrayListener, WindowListener {
   static final TrayService instance = TrayService._();
   TrayService._();
 
@@ -17,55 +16,64 @@ class TrayService with TrayListener {
     if (!PlatformInfos.isDesktop) return;
     _initialized = true;
 
-    await wm.windowManager.ensureInitialized();
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+    windowManager.addListener(this);
 
-    // Always intercept close → hide to tray
-    await wm.windowManager.setPreventClose(true);
+    _initTray();
+  }
 
-    // Find tray icon: Windows requires .ico, macOS/Linux take .png
-    String? iconPath;
+  Future<void> _initTray() async {
+    // Windows requires .ico; macOS/Linux take .png
     if (Platform.isWindows) {
-      // Try multiple possible locations for the .ico file
+      // The .ico is bundled as a Flutter asset.
+      // In release builds it lives under data/flutter_assets/assets/ relative to exe.
+      final exeDir = File(Platform.resolvedExecutable).parent.path;
       final candidates = [
+        '$exeDir\\data\\flutter_assets\\assets\\tray_icon.ico',
+        '$exeDir\\data\\flutter_assets\\packages\\fluffychat\\assets\\tray_icon.ico',
+        '${Directory.current.path}\\assets\\tray_icon.ico',
         '${Directory.current.path}\\windows\\runner\\resources\\app_icon.ico',
-        '${Directory.current.path}\\data\\flutter_assets\\windows\\runner\\resources\\app_icon.ico',
-        '${Platform.resolvedExecutable}\\..\\data\\flutter_assets\\windows\\runner\\resources\\app_icon.ico',
       ];
       for (final p in candidates) {
         if (File(p).existsSync()) {
-          iconPath = p;
+          await trayManager.setIcon(p);
           break;
         }
       }
     } else {
-      iconPath = 'assets/logo/mini/logo_mini.png';
+      await trayManager.setIcon(
+        'assets/logo/mini/logo_mini.png',
+        isTemplate: Platform.isMacOS,
+      );
     }
 
-    if (iconPath != null) {
-      await trayManager.setIcon(iconPath, isTemplate: Platform.isMacOS);
-    }
-
-    final menu = Menu(
+    await trayManager.setContextMenu(Menu(
       items: [
         MenuItem(key: 'show', label: '打开主界面'),
         MenuItem(key: 'settings', label: '设置'),
         MenuItem.separator(),
         MenuItem(key: 'quit', label: '退出'),
       ],
-    );
-    await trayManager.setContextMenu(menu);
+    ));
     await trayManager.setToolTip('FluffyChat');
-
     trayManager.addListener(this);
   }
 
-  // ── TrayListener callbacks ──────────────────────────
+  // ── WindowListener ──────────────────────────────────
+
+  @override
+  void onWindowClose() {
+    // Close button → hide to tray instead of exiting
+    windowManager.hide();
+  }
+
+  // ── TrayListener ────────────────────────────────────
 
   @override
   void onTrayIconMouseDown() {
-    // Single-click tray icon → restore window
-    wm.windowManager.show();
-    wm.windowManager.focus();
+    windowManager.show();
+    windowManager.focus();
   }
 
   @override
@@ -77,49 +85,53 @@ class TrayService with TrayListener {
   void onTrayMenuItemClick(MenuItem menuItem) {
     switch (menuItem.key) {
       case 'show':
-        wm.windowManager.show();
-        wm.windowManager.focus();
+        windowManager.show();
+        windowManager.focus();
         break;
       case 'settings':
-        wm.windowManager.show();
-        wm.windowManager.focus();
-        // Send a platform channel message or use a global key to navigate
+        windowManager.show();
+        windowManager.focus();
         _navigateToSettings();
         break;
       case 'quit':
-        trayManager.destroy();
-        wm.windowManager.destroy();
+        _exit();
         break;
     }
   }
 
-  // ── Navigation helper ───────────────────────────────
-
   void _navigateToSettings() {
-    // Use GoRouter via the app's navigatorKey
     try {
-      final router = _appRouter;
-      if (router != null) {
-        router.go('/rooms/settings');
+      if (_appRouter != null) {
+        _appRouter!.go('/rooms/settings');
       }
     } catch (_) {}
   }
 
-  // Set externally by FluffyChatApp after router is created
-  static dynamic _appRouter;
-
-  static void registerRouter(dynamic router) {
-    _appRouter = router;
+  void _exit() {
+    trayManager.destroy();
+    windowManager.setPreventClose(false);
+    windowManager.close();
+    windowManager.destroy();
   }
 
   // ── Public API ──────────────────────────────────────
 
+  static dynamic _appRouter;
+  static void registerRouter(dynamic router) {
+    _appRouter = router;
+  }
+
   Future<void> setCloseToTray(bool enabled) async {
     await AppSettings.closeToTray.setItem(enabled);
-    await wm.windowManager.setPreventClose(enabled);
+    if (enabled) {
+      await windowManager.setPreventClose(true);
+    } else {
+      await windowManager.setPreventClose(false);
+    }
   }
 
   Future<void> dispose() async {
+    windowManager.removeListener(this);
     trayManager.removeListener(this);
     await trayManager.destroy();
   }
