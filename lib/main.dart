@@ -106,6 +106,7 @@ void main(List<String> args) async {
   await startGui(clients, store);
   SchedulerService.instance.start();
   if (PlatformInfos.isDesktop) {
+    TrayService.registerRouter(FluffyChatApp.router);
     await TrayService.instance.init();
   }
 }

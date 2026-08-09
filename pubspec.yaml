@@ -111,6 +111,7 @@ flutter:
     - assets/logo/mini/
     - assets/sounds/
     - assets/vodozemac/
+    - assets/tray_icon.ico
 
 hooks:
   user_defines:
